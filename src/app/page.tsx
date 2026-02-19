@@ -1,65 +1,166 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useCallback } from "react";
+import AddressSearch from "@/components/AddressSearch";
+import MapView from "@/components/MapView";
+import BuildingInfo from "@/components/BuildingInfo";
+import EstimateResult from "@/components/EstimateResult";
+import TabNavigation, { type TabId } from "@/components/TabNavigation";
+import RoofAnalysisTab from "@/components/tabs/RoofAnalysisTab";
+import SolarTab from "@/components/tabs/SolarTab";
+import FinancialTab from "@/components/tabs/FinancialTab";
+import DevModeTab from "@/components/tabs/DevModeTab";
+import { fetchBuildingInsights, type BuildingInsights } from "@/lib/solar-api";
+
+const DEFAULT_CENTER = { lat: 35.6812, lng: 139.7671 }; // 東京駅
+
+function NoDataMessage() {
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
+      <p className="text-sm text-gray-500">
+        住所を検索するか、地図上で建物をクリックするとデータが表示されます
+      </p>
+    </div>
+  );
+}
 
 export default function Home() {
+  const [mapCenter, setMapCenter] = useState(DEFAULT_CENTER);
+  const [markerPosition, setMarkerPosition] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [selectedAddress, setSelectedAddress] = useState("");
+  const [building, setBuilding] = useState<BuildingInsights | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState<TabId>("simple");
+
+  const lookupBuilding = useCallback(async (lat: number, lng: number) => {
+    setLoading(true);
+    setError("");
+    setBuilding(null);
+    setMarkerPosition({ lat, lng });
+    setMapCenter({ lat, lng });
+
+    try {
+      const data = await fetchBuildingInsights(lat, lng);
+      setBuilding(data);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "建物情報の取得に失敗しました"
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleLocationFound = useCallback(
+    (lat: number, lng: number, address: string) => {
+      setSelectedAddress(address);
+      lookupBuilding(lat, lng);
+    },
+    [lookupBuilding]
+  );
+
+  const handleMapClick = useCallback(
+    (lat: number, lng: number) => {
+      setSelectedAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+      lookupBuilding(lat, lng);
+    },
+    [lookupBuilding]
+  );
+
+  const roofArea = building?.solarPotential?.wholeRoofStats?.areaMeters2 ?? null;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="min-h-screen bg-gray-50">
+      {/* ヘッダー */}
+      <header className="bg-white border-b border-gray-200">
+        <div className="mx-auto px-6 py-4">
+          <h1 className="text-xl font-bold text-gray-900">
+            リフォーム概算見積ツール
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-sm text-gray-500 mt-0.5">
+            住所から建物の屋根面積を取得し、リフォーム費用を概算します
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </header>
+
+      {/* メインコンテンツ */}
+      <main className="mx-auto px-6 py-6 space-y-6">
+        {/* 住所検索 */}
+        <AddressSearch onLocationFound={handleLocationFound} />
+
+        {/* 選択中の住所 */}
+        {selectedAddress && (
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-gray-500">選択中:</span>
+            <span className="font-medium text-gray-900">{selectedAddress}</span>
+          </div>
+        )}
+
+        {/* タブナビゲーション（地図の上） */}
+        <TabNavigation
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          hasData={!!building}
+        />
+
+        {/* 地図 */}
+        <MapView
+          center={mapCenter}
+          onMapClick={handleMapClick}
+          markerPosition={markerPosition}
+        />
+
+        {/* 建物情報（共通） */}
+        <BuildingInfo building={building} loading={loading} error={error} />
+
+        {/* タブコンテンツ */}
+        <div className="min-h-[200px]">
+          {activeTab === "simple" && (
+            <div className="space-y-6">
+              <EstimateResult roofAreaSqm={roofArea} />
+              {building && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 space-y-1">
+                  <p className="font-medium">ご注意</p>
+                  <ul className="list-disc list-inside space-y-0.5">
+                    <li>本ツールの見積もりは概算であり、実際の費用は現地調査後に確定します</li>
+                    <li>屋根面積はGoogle Solar APIのデータに基づいており、実測値と異なる場合があります</li>
+                    <li>足場代、撤去費用、その他の付帯工事費用は含まれていません</li>
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "roof" && (
+            building ? <RoofAnalysisTab building={building} /> : <NoDataMessage />
+          )}
+
+          {activeTab === "solar" && (
+            building ? <SolarTab building={building} /> : <NoDataMessage />
+          )}
+
+          {activeTab === "financial" && (
+            building ? <FinancialTab building={building} /> : <NoDataMessage />
+          )}
+
+          {activeTab === "devmode" && (
+            <DevModeTab building={building} />
+          )}
         </div>
       </main>
+
+      {/* フッター */}
+      <footer className="border-t border-gray-200 bg-white mt-12">
+        <div className="mx-auto px-6 py-4 text-center text-xs text-gray-400">
+          Powered by Google Maps Solar API
+        </div>
+      </footer>
     </div>
   );
 }

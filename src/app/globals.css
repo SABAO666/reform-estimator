@@ -2,7 +2,7 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #111111;
 }
 
 @theme inline {
@@ -12,15 +12,34 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* テーブル・リストのテキストを見やすく */
+table {
+  color: #1a1a1a;
+}
+
+td, th {
+  color: #1a1a1a;
+}
+
+/* バッジ・ラベルのコントラスト強化 */
+span[class*="bg-gray-100"] {
+  color: #333;
+}
+
+span[class*="bg-blue-50"] {
+  color: #1e40af;
+}
+
+/* 入力フォーム */
+input, select, textarea {
+  color: #111;
 }
