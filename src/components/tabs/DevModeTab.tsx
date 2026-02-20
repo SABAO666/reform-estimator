@@ -9,6 +9,98 @@ type Props = {
 export default function DevModeTab({ building }: Props) {
   return (
     <div className="space-y-6">
+      {/* ズバリの取得方法 */}
+      <div className="rounded-lg border-2 border-blue-400 bg-blue-50 p-6">
+        <h3 className="text-lg font-semibold text-blue-900 mb-4">屋根面積の取得方法 — ズバリ1行で取れる</h3>
+
+        <div className="space-y-4 text-sm">
+          <p className="text-blue-800">
+            Google Solar API に<strong>緯度・経度を渡すだけ</strong>で、計算済みの屋根面積が数値で返ってくる。
+            航空写真の解析・屋根検出・面積計算は<strong>全てGoogle側が実行済み</strong>。こちらで画像処理する必要はない。
+          </p>
+
+          {/* APIリクエスト */}
+          <div>
+            <p className="text-xs font-semibold text-blue-700 mb-1">1. APIを呼ぶ（HTTP GET 1回）</p>
+            <div className="rounded bg-gray-900 p-3 font-mono text-xs text-green-400 overflow-x-auto">
+              <pre>{`GET https://solar.googleapis.com/v1/buildingInsights:findClosest
+  ?location.latitude=35.682
+  &location.longitude=139.767
+  &requiredQuality=HIGH
+  &key=YOUR_API_KEY`}</pre>
+            </div>
+          </div>
+
+          {/* レスポンスの該当箇所 */}
+          <div>
+            <p className="text-xs font-semibold text-blue-700 mb-1">2. レスポンスJSON内にある変数</p>
+            <div className="rounded bg-gray-900 p-3 font-mono text-xs overflow-x-auto">
+              <pre>{`{
+  "solarPotential": {
+    "wholeRoofStats": {`}</pre>
+              <pre className="text-amber-400 text-sm font-bold">{`      "areaMeters2": 1120.6        ← ★ これが屋根面積（㎡）`}</pre>
+              <pre className="text-gray-400">{`      "groundAreaMeters2": 1079.0  ← 地上投影面積（㎡）
+    },
+    "roofSegmentStats": [          ← 屋根の各面ごとの面積もある
+      {
+        "stats": { "areaMeters2": 46.3 },
+        "pitchDegrees": 12.5,      ← 勾配（度）
+        "azimuthDegrees": 106.0    ← 方位（度）
+      }, ...
+    ]
+  }
+}`}</pre>
+            </div>
+          </div>
+
+          {/* コード */}
+          <div>
+            <p className="text-xs font-semibold text-blue-700 mb-1">3. このアプリでの取得コード（TypeScript）</p>
+            <div className="rounded bg-gray-900 p-3 font-mono text-xs text-green-400 overflow-x-auto">
+              <pre>{`// たった1行で屋根面積を取得
+const roofArea = building.solarPotential.wholeRoofStats.areaMeters2;
+
+// 各セグメントの面積・勾配・方位も取得できる
+building.solarPotential.roofSegmentStats.forEach(seg => {
+  console.log(seg.stats.areaMeters2);   // セグメント面積
+  console.log(seg.pitchDegrees);        // 勾配
+  console.log(seg.azimuthDegrees);      // 方位
+});`}</pre>
+            </div>
+          </div>
+
+          {/* 現在の建物のデータ */}
+          {building && (
+            <div className="rounded bg-white border border-blue-200 p-3">
+              <p className="text-xs font-semibold text-blue-700 mb-2">現在取得中の建物データ</p>
+              <dl className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <dt className="text-gray-500">wholeRoofStats.areaMeters2</dt>
+                  <dd className="text-lg font-bold text-blue-800">{building.solarPotential.wholeRoofStats.areaMeters2.toFixed(1)} ㎡</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">wholeRoofStats.groundAreaMeters2</dt>
+                  <dd className="text-lg font-bold text-gray-700">{building.solarPotential.wholeRoofStats.groundAreaMeters2.toFixed(1)} ㎡</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">roofSegmentStats.length</dt>
+                  <dd className="text-lg font-bold text-gray-700">{building.solarPotential.roofSegmentStats.length} セグメント</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">imageryQuality</dt>
+                  <dd className="text-lg font-bold text-gray-700">{building.imageryQuality} {building._imageryQuality === "MEDIUM" ? "(フォールバック)" : ""}</dd>
+                </div>
+              </dl>
+            </div>
+          )}
+
+          <p className="text-xs text-blue-600">
+            つまり、航空写真からの3D解析・屋根検出・面積計算は全部Google側でやっている。
+            こちらは緯度経度を渡すだけ。面積は「変数を読むだけ」で取得できる。
+          </p>
+        </div>
+      </div>
+
       {/* API解説 */}
       <div className="rounded-lg border border-gray-200 bg-white p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Google Solar API 解説</h3>
